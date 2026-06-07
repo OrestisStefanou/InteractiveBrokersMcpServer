@@ -8,13 +8,14 @@ from interactive_brokers import models as ib_models
 from interactive_brokers.ib_client import InteractiveBrokersClient
 from mcp_app.dependencies import get_interactive_brokers_client
 from mcp_app.schema import (
+    SecurityInformation,
     SecuritySearchResult,
     SecurityType,
 )
 
 
 @tool(
-    name="searchInteractiveBrokersSecurities",
+    name="searchSecurities",
     description="Search for Interactive Brokers securities using symbol OR name.",
 )
 async def search_ib_securities(
@@ -30,7 +31,13 @@ async def search_ib_securities(
     ib_request_uses_name = True if name is not None else False
     ib_sec_type = None
     if security_type is not None:
-        ib_sec_type = ib_models.SecurityType(security_type.value)
+        match security_type:
+            case SecurityType.STOCK:
+                ib_sec_type = ib_models.SecurityType.STOCK
+            case SecurityType.INDEX:
+                ib_sec_type = ib_models.SecurityType.INDEX
+            case SecurityType.BOND:
+                ib_sec_type = ib_models.SecurityType.BOND
 
     search_request = ib_models.SearchContractRequest(
         symbol=ib_request_symbol,
@@ -41,7 +48,7 @@ async def search_ib_securities(
 
     return [
         SecuritySearchResult(
-            conid=result.conid,
+            contract_id=result.conid,
             company_header=result.company_header,
             company_name=result.company_name,
             symbol=result.symbol,
@@ -51,3 +58,31 @@ async def search_ib_securities(
         )
         for result in search_results
     ]
+
+
+@tool(
+    name="getSecurityInfoByContractId",
+    description="Search for Interactive Brokers securities using symbol OR name.",
+)
+async def get_ib_security_by_contract_id(
+    contract_id: Annotated[str, "contract id of the security"],
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> SecurityInformation:
+    result = await ib_client.get_security_info_by_contract_id(contract_id)
+    return SecurityInformation(
+        contract_id=result.con_id,
+        symbol=result.symbol,
+        currency=result.currency,
+        company_name=result.company_name,
+        instrument_type=result.instrument_type,
+        exchange=result.exchange,
+        valid_exchanges=result.valid_exchanges,
+        trading_class=result.trading_class,
+        industry=result.industry,
+        category=result.category,
+        local_symbol=result.local_symbol,
+        cfi_code=result.cfi_code,
+        cusip=result.cusip,
+        expiry_full=result.expiry_full,
+        maturity_date=result.maturity_date,
+    )

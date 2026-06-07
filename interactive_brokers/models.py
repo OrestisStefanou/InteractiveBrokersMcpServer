@@ -54,3 +54,34 @@ class SearchContractResult(BaseModel):
 
 
 SearchContractsResponse: TypeAlias = list[SearchContractResult]
+
+
+class SecurityInformation(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    con_id: int
+    symbol: str
+    currency: str
+    company_name: str | None = None
+    instrument_type: str | None = None
+    exchange: str | None = None
+    valid_exchanges: str | None = None
+    trading_class: str | None = None
+    industry: str | None = None
+    category: str | None = None
+    local_symbol: str | None = None
+    cfi_code: str | None = None
+    cusip: str | None = None
+    expiry_full: str | None = None
+    maturity_date: str | None = None
+    contract_month: str | None = None
+    multiplier: str | None = None
+    underlying_con_id: int | None = None
+    underlying_issuer: str | None = None
+    contract_clarification_type: str | None = None
+    classifier: str | None = None
+    text: str | None = None
+    allow_sell_long: bool = False
+    is_zero_commission_security: bool = False
+    smart_available: bool | None = None
+    r_t_h: bool | None = None

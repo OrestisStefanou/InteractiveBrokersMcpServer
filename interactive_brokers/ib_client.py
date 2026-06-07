@@ -4,6 +4,7 @@ from interactive_brokers.models import (
     SearchContractRequest,
     SearchContractResult,
     SearchContractsResponse,
+    SecurityInformation,
 )
 
 
@@ -28,3 +29,15 @@ class InteractiveBrokersClient:
             data = response.json()
 
         return [SearchContractResult.model_validate(item) for item in data]
+
+    async def get_security_info_by_contract_id(
+        self, contract_id: str
+    ) -> SecurityInformation:
+        url = f"{self._base_url}/iserver/contract/{contract_id}/info"
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        return SecurityInformation.model_validate(data)

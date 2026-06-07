@@ -17,15 +17,8 @@ async def main():
         await client.ping()
 
         result = await client.call_tool(
-            name="getCoinbasePortfolios",
-            arguments={
-                # "order_request": {
-                #     "product_id": "BTC-USDCCC",
-                #     "side": "buy",
-                #     "base_size": "1",
-                # },
-                # "end_date": "2025-01-01T01:00:00Z",
-            },
+            name="getSecurityInfoByContractId",
+            arguments={"contract_id": "136155102"},
         )
         print(result.structured_content)
 

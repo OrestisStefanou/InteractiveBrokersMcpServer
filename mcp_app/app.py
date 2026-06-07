@@ -7,6 +7,7 @@ from fastmcp.server.middleware import (
 )
 
 from mcp_app.tools import (
+    get_ib_security_by_contract_id,
     search_ib_securities,
 )
 
@@ -32,3 +33,4 @@ class LoggingMiddleware(Middleware):
 mcp_app = FastMCP("Interactive Brokers MCP Server")
 mcp_app.add_middleware(LoggingMiddleware())
 mcp_app.add_tool(search_ib_securities)
+mcp_app.add_tool(get_ib_security_by_contract_id)
