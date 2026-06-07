@@ -1,5 +1,5 @@
 import enum
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -11,7 +11,10 @@ class SecurityType(enum.StrEnum):
 
 
 class SearchContractRequest(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_by_name=True,
+    )
 
     symbol: str
     name: bool | None = None
