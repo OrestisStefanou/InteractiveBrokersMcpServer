@@ -1,6 +1,7 @@
 import httpx
 
 from interactive_brokers.models import (
+    Account,
     SearchContractRequest,
     SearchContractResult,
     SearchContractsResponse,
@@ -29,6 +30,16 @@ class InteractiveBrokersClient:
             data = response.json()
 
         return [SearchContractResult.model_validate(item) for item in data]
+
+    async def get_accounts(self) -> list[Account]:
+        url = f"{self._base_url}/portfolio/accounts"
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        return [Account.model_validate(item) for item in data]
 
     async def get_security_info_by_contract_id(
         self, contract_id: str
