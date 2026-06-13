@@ -79,6 +79,28 @@ class Account(BaseModel):
     desc: str | None = None
 
 
+class Position(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    position: float | None = None
+    conid: str | None = None
+    avg_cost: float | None = Field(default=None, alias="avgCost")
+    avg_price: float | None = Field(default=None, alias="avgPrice")
+    currency: str | None = None
+    description: str | None = None
+    is_last_to_loq: bool | None = Field(default=None, alias="isLastToLoq")
+    market_price: float | None = Field(default=None, alias="marketPrice")
+    market_value: float | None = Field(default=None, alias="marketValue")
+    realized_pnl: float | None = Field(default=None, alias="realizedPnl")
+    sec_type: str | None = Field(default=None, alias="secType")
+    timestamp: int | None = None
+    unrealized_pnl: float | None = Field(default=None, alias="unrealizedPnl")
+    asset_class: str | None = Field(default=None, alias="assetClass")
+    sector: str | None = None
+    group: str | None = None
+    model: str | None = None
+
+
 class SecurityInformation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

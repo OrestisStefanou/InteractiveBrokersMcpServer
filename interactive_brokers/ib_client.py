@@ -2,6 +2,7 @@ import httpx
 
 from interactive_brokers.models import (
     Account,
+    Position,
     SearchContractRequest,
     SearchContractResult,
     SearchContractsResponse,
@@ -52,3 +53,24 @@ class InteractiveBrokersClient:
             data = response.json()
 
         return SecurityInformation.model_validate(data)
+
+    async def get_account_positions(
+        self,
+        account_id: str,
+        sort: str | None = None,
+        direction: str | None = None,
+    ) -> list[Position]:
+        url = f"{self._base_url}/portfolio2/{account_id}/positions"
+
+        query_params = {}
+        if sort is not None:
+            query_params["sort"] = sort
+        if direction is not None:
+            query_params["direction"] = direction
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url, params=query_params)
+            response.raise_for_status()
+            data = response.json()
+
+        return [Position.model_validate(item) for item in data]

@@ -17,8 +17,8 @@ async def main():
         await client.ping()
 
         result = await client.call_tool(
-            name="getAccounts",
-            # arguments={"contract_id": "136155102"},
+            name="getAccountPositions",
+            arguments={"account_id": "U24587525"},
         )
         print(result.structured_content)
 

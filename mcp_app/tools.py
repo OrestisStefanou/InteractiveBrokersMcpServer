@@ -9,9 +9,11 @@ from interactive_brokers.ib_client import InteractiveBrokersClient
 from mcp_app.dependencies import get_interactive_brokers_client
 from mcp_app.schema import (
     Account,
+    Position,
     SecurityInformation,
     SecuritySearchResult,
     SecurityType,
+    SortDirection,
 )
 
 
@@ -119,3 +121,34 @@ async def get_ib_security_by_contract_id(
         expiry_full=result.expiry_full,
         maturity_date=result.maturity_date,
     )
+
+
+@tool(
+    name="getAccountPositions",
+    description="Get the list of positions held in a given Interactive Brokers account.",
+)
+async def get_ib_account_positions(
+    account_id: Annotated[str, "the account ID to get positions for"],
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[Position]:
+    results = await ib_client.get_account_positions(
+        account_id=account_id,
+    )
+    return [
+        Position(
+            position=result.position,
+            contract_id=result.conid,
+            avg_cost=result.avg_cost,
+            avg_price=result.avg_price,
+            currency=result.currency,
+            symbol=result.description,
+            market_price=result.market_price,
+            market_value=result.market_value,
+            realized_pnl=result.realized_pnl,
+            unrealized_pnl=result.unrealized_pnl,
+            sec_type=result.sec_type,
+            asset_class=result.asset_class,
+            timestamp=result.timestamp,
+        )
+        for result in results
+    ]

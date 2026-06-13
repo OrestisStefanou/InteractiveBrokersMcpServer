@@ -13,20 +13,52 @@ class Account(BaseModel):
     id: str = Field(description="The account ID.")
     account_van: str | None = Field(default=None, description="The account alias.")
     account_title: str | None = Field(default=None, description="Title of the account.")
-    display_name: str | None = Field(default=None, description="Display name of the account.")
-    account_alias: str | None = Field(default=None, description="User customizable account alias.")
-    account_status: int | None = Field(default=None, description="Unix timestamp of when the account was opened.")
-    currency: str | None = Field(default=None, description="Base currency of the account.")
-    type: str | None = Field(default=None, description="Account type (e.g. INDIVIDUAL, IRA, DEMO).")
-    trading_type: str | None = Field(default=None, description="Account trading structure (e.g. PMRGN, STKCASH).")
-    business_type: str | None = Field(default=None, description="Organizational structure of the account.")
-    ib_entity: str | None = Field(default=None, description="Interactive Brokers entity the account is tied to.")
-    fa_client: bool | None = Field(default=None, description="Whether the account is a sub-account of a Financial Advisor.")
-    clearing_status: str | None = Field(default=None, description="Status of the account. O=Open, P/N=Pending, A=Abandoned, R=Rejected, C=Closed.")
-    covestor: bool | None = Field(default=None, description="Whether this is a Covestor account.")
-    no_client_trading: bool | None = Field(default=None, description="Whether the client account is restricted from trading.")
-    track_virtual_fx_portfolio: bool | None = Field(default=None, description="Whether the account tracks a Virtual FX portfolio.")
-    desc: str | None = Field(default=None, description="Account description in the format 'accountId - accountAlias'.")
+    display_name: str | None = Field(
+        default=None, description="Display name of the account."
+    )
+    account_alias: str | None = Field(
+        default=None, description="User customizable account alias."
+    )
+    account_status: int | None = Field(
+        default=None, description="Unix timestamp of when the account was opened."
+    )
+    currency: str | None = Field(
+        default=None, description="Base currency of the account."
+    )
+    type: str | None = Field(
+        default=None, description="Account type (e.g. INDIVIDUAL, IRA, DEMO)."
+    )
+    trading_type: str | None = Field(
+        default=None, description="Account trading structure (e.g. PMRGN, STKCASH)."
+    )
+    business_type: str | None = Field(
+        default=None, description="Organizational structure of the account."
+    )
+    ib_entity: str | None = Field(
+        default=None, description="Interactive Brokers entity the account is tied to."
+    )
+    fa_client: bool | None = Field(
+        default=None,
+        description="Whether the account is a sub-account of a Financial Advisor.",
+    )
+    clearing_status: str | None = Field(
+        default=None,
+        description="Status of the account. O=Open, P/N=Pending, A=Abandoned, R=Rejected, C=Closed.",
+    )
+    covestor: bool | None = Field(
+        default=None, description="Whether this is a Covestor account."
+    )
+    no_client_trading: bool | None = Field(
+        default=None,
+        description="Whether the client account is restricted from trading.",
+    )
+    track_virtual_fx_portfolio: bool | None = Field(
+        default=None, description="Whether the account tracks a Virtual FX portfolio."
+    )
+    desc: str | None = Field(
+        default=None,
+        description="Account description in the format 'accountId - accountAlias'.",
+    )
 
 
 class SecuritySearchResult(BaseModel):
@@ -37,6 +69,51 @@ class SecuritySearchResult(BaseModel):
     description: str | None = None
     restricted: str | None = None
     bondid: int | None = None
+
+
+class Position(BaseModel):
+    position: float | None = Field(
+        default=None, description="The total size of the position."
+    )
+    contract_id: str | None = Field(
+        default=None, description="The contract ID of the position."
+    )
+    avg_cost: float | None = Field(
+        default=None,
+        description="The average cost of each share in the position times the multiplier.",
+    )
+    avg_price: float | None = Field(
+        default=None,
+        description="The average cost of each share in the position when purchased.",
+    )
+    currency: str | None = Field(
+        default=None, description="The traded currency for the contract."
+    )
+    symbol: str | None = Field(
+        default=None, description="The local symbol of the position."
+    )
+    market_price: float | None = Field(
+        default=None, description="The current market price of each share."
+    )
+    market_value: float | None = Field(
+        default=None, description="The total market value of the position."
+    )
+    realized_pnl: float | None = Field(
+        default=None, description="The total profit realized today through trades."
+    )
+    unrealized_pnl: float | None = Field(
+        default=None,
+        description="The total potential profit if the position were closed.",
+    )
+    sec_type: str | None = Field(
+        default=None, description="The asset class or security type of the contract."
+    )
+    asset_class: str | None = Field(
+        default=None, description="The asset class or security type of the contract."
+    )
+    timestamp: int | None = Field(
+        default=None, description="The epoch timestamp of the portfolio request."
+    )
 
 
 class SecurityInformation(BaseModel):
