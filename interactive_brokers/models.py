@@ -56,6 +56,29 @@ class SearchContractResult(BaseModel):
 SearchContractsResponse: TypeAlias = list[SearchContractResult]
 
 
+class Account(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    account_id: str | None = Field(default=None, alias="accountId")
+    account_van: str | None = Field(default=None, alias="accountVan")
+    account_title: str | None = Field(default=None, alias="accountTitle")
+    display_name: str | None = Field(default=None, alias="displayName")
+    account_alias: str | None = Field(default=None, alias="accountAlias")
+    account_status: int | None = Field(default=None, alias="accountStatus")
+    currency: str | None = None
+    type: str | None = None
+    trading_type: str | None = Field(default=None, alias="tradingType")
+    business_type: str | None = Field(default=None, alias="businessType")
+    ib_entity: str | None = Field(default=None, alias="ibEntity")
+    fa_client: bool | None = Field(default=None, alias="faclient")
+    clearing_status: str | None = Field(default=None, alias="clearingStatus")
+    covestor: bool | None = None
+    no_client_trading: bool | None = Field(default=None, alias="noClientTrading")
+    track_virtual_fx_portfolio: bool | None = Field(default=None, alias="trackVirtualFXPortfolio")
+    desc: str | None = None
+
+
 class SecurityInformation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

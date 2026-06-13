@@ -8,10 +8,43 @@ from interactive_brokers import models as ib_models
 from interactive_brokers.ib_client import InteractiveBrokersClient
 from mcp_app.dependencies import get_interactive_brokers_client
 from mcp_app.schema import (
+    Account,
     SecurityInformation,
     SecuritySearchResult,
     SecurityType,
 )
+
+
+@tool(
+    name="getAccounts",
+    description="Get all Interactive Brokers accounts linked to the current login.",
+)
+async def get_ib_accounts(
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[Account]:
+    results = await ib_client.get_accounts()
+    return [
+        Account(
+            id=account.id,
+            account_van=account.account_van,
+            account_title=account.account_title,
+            display_name=account.display_name,
+            account_alias=account.account_alias,
+            account_status=account.account_status,
+            currency=account.currency,
+            type=account.type,
+            trading_type=account.trading_type,
+            business_type=account.business_type,
+            ib_entity=account.ib_entity,
+            fa_client=account.fa_client,
+            clearing_status=account.clearing_status,
+            covestor=account.covestor,
+            no_client_trading=account.no_client_trading,
+            track_virtual_fx_portfolio=account.track_virtual_fx_portfolio,
+            desc=account.desc,
+        )
+        for account in results
+    ]
 
 
 @tool(
