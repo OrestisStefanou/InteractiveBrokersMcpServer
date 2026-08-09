@@ -1,18 +1,25 @@
+import uuid
 from typing import Annotated
 
 from fastmcp.dependencies import Depends
 from fastmcp.exceptions import ToolError
 from fastmcp.tools import tool
+from pydantic import ValidationError
 
 from interactive_brokers import models as ib_models
+from interactive_brokers.errors import OrderResponseParseError
 from interactive_brokers.ib_client import InteractiveBrokersClient
 from mcp_app.dependencies import get_interactive_brokers_client
 from mcp_app.schema import (
     Account,
+    OrderPlacementResult,
+    OrderPlacementStatus,
+    OrderSide,
     Position,
     SecurityInformation,
     SecuritySearchResult,
     SecurityType,
+    TimeInForce,
 )
 
 
@@ -151,3 +158,134 @@ async def get_ib_account_positions(
         )
         for result in results
     ]
+
+
+def _to_order_placement_result(
+    response: ib_models.PlaceOrderResponse,
+    client_order_id: str | None = None,
+) -> OrderPlacementResult:
+    if response.error is not None:
+        status = OrderPlacementStatus.REJECTED
+    elif response.id is not None and response.message is not None:
+        status = OrderPlacementStatus.NEEDS_CONFIRMATION
+    elif response.order_id is not None:
+        status = OrderPlacementStatus.SUBMITTED
+    else:
+        status = OrderPlacementStatus.UNKNOWN
+
+    return OrderPlacementResult(
+        status=status,
+        client_order_id=client_order_id,
+        order_id=response.order_id,
+        order_status=response.order_status,
+        reply_id=(
+            response.id
+            if status == OrderPlacementStatus.NEEDS_CONFIRMATION
+            else None
+        ),
+        messages=response.message,
+        error=response.error,
+    )
+
+
+@tool(
+    name="placeOrder",
+    description=(
+        "Place a market order on Interactive Brokers. A market order executes "
+        "immediately at the prevailing market price, which may differ from the last "
+        "quoted price. Limit orders are not supported. Interactive Brokers often "
+        "responds with warnings that must be reviewed: a NEEDS_CONFIRMATION result "
+        "means the order has NOT been sent to the market and only goes live after "
+        "calling confirmOrder with the returned reply_id. A SUBMITTED result is "
+        "final and needs no follow-up call."
+    ),
+    annotations={"destructiveHint": True, "readOnlyHint": False},
+)
+async def place_ib_order(
+    account_id: Annotated[str, "the account ID to place the order in"],
+    contract_id: Annotated[int, "contract id of the security to trade"],
+    side: Annotated[OrderSide, "whether to buy or sell"],
+    quantity: Annotated[float, "number of shares or contracts to trade"],
+    time_in_force: Annotated[
+        TimeInForce, "how long the order stays active"
+    ] = TimeInForce.DAY,
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[OrderPlacementResult]:
+    match side:
+        case OrderSide.BUY:
+            ib_side = ib_models.OrderSide.BUY
+        case OrderSide.SELL:
+            ib_side = ib_models.OrderSide.SELL
+
+    match time_in_force:
+        case TimeInForce.DAY:
+            ib_tif = ib_models.TimeInForce.DAY
+        case TimeInForce.GTC:
+            ib_tif = ib_models.TimeInForce.GTC
+        case TimeInForce.IOC:
+            ib_tif = ib_models.TimeInForce.IOC
+        case TimeInForce.OPG:
+            ib_tif = ib_models.TimeInForce.OPG
+
+    client_order_id = uuid.uuid4().hex
+
+    try:
+        order_request = ib_models.PlaceOrderRequest(
+            conid=contract_id,
+            order_type=ib_models.OrderType.MARKET,
+            side=ib_side,
+            quantity=quantity,
+            c_oid=client_order_id,
+            tif=ib_tif,
+            acct_id=account_id,
+        )
+    except ValidationError as exc:
+        raise ToolError(f"Invalid order: {exc}") from exc
+
+    try:
+        results = await ib_client.place_order(
+            account_id=account_id,
+            order=order_request,
+        )
+    except OrderResponseParseError as exc:
+        raise ToolError(
+            "Interactive Brokers accepted the request but returned an unreadable "
+            f"response, so the order may already be placed (client order id "
+            f"{client_order_id}). Reconcile against the account's live orders before "
+            f"retrying. Raw response: {exc.payload!r}"
+        ) from exc
+
+    return [_to_order_placement_result(result, client_order_id) for result in results]
+
+
+@tool(
+    name="confirmOrder",
+    description=(
+        "Confirm or cancel an order that Interactive Brokers flagged with a warning. "
+        "Only call this with a reply_id returned by a NEEDS_CONFIRMATION result from "
+        "placeOrder; there is nothing to confirm otherwise. Pass confirmed=true to "
+        "send the order to the market, or confirmed=false to abandon it. Interactive "
+        "Brokers may respond with a further warning, in which case another "
+        "NEEDS_CONFIRMATION result is returned and must be confirmed with the new "
+        "reply_id."
+    ),
+    annotations={"destructiveHint": True, "readOnlyHint": False},
+)
+async def confirm_ib_order(
+    reply_id: Annotated[str, "the reply id of the warning to answer"],
+    confirmed: Annotated[bool, "true to place the order, false to abandon it"] = True,
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[OrderPlacementResult]:
+    try:
+        results = await ib_client.confirm_order(
+            reply_id=reply_id,
+            confirmed=confirmed,
+        )
+    except OrderResponseParseError as exc:
+        raise ToolError(
+            "Interactive Brokers accepted the confirmation but returned an unreadable "
+            "response, so the order may already be placed. Reconcile against the "
+            f"account's live orders before retrying. Raw response: {exc.payload!r}"
+        ) from exc
+
+    return [_to_order_placement_result(result) for result in results]

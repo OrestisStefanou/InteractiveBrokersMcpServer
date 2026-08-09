@@ -7,7 +7,7 @@ class Config(BaseSettings):
     mcp_port: int = 9092
 
     # If True, the server will not expose any tools that can modify the state of the IB account.
-    # Not enforced yet: every tool currently registered is read-only, so there is nothing to gate.
+    # Enforced in mcp_app/app.py, which skips registration of placeOrder and confirmOrder.
     read_only: bool = False
 
     # Read from `.env`

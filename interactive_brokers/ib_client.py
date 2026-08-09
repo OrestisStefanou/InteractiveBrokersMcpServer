@@ -102,3 +102,23 @@ class InteractiveBrokersClient:
             return [PlaceOrderResponse.model_validate(item) for item in data]
         except ValidationError as exc:
             raise OrderResponseParseError(data) from exc
+
+    async def confirm_order(
+        self,
+        reply_id: str,
+        confirmed: bool = True,
+    ) -> list[PlaceOrderResponse]:
+        url = f"{self._base_url}/iserver/reply/{reply_id}"
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.post(url, json={"confirmed": confirmed})
+            response.raise_for_status()
+            data = response.json()
+
+        # Same reasoning as place_order: answering the reply may already have
+        # released the order to the market, so a parse failure is "outcome
+        # unknown", not "confirmation failed".
+        try:
+            return [PlaceOrderResponse.model_validate(item) for item in data]
+        except ValidationError as exc:
+            raise OrderResponseParseError(data) from exc
