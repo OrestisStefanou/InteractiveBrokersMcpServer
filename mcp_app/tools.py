@@ -13,7 +13,6 @@ from mcp_app.schema import (
     SecurityInformation,
     SecuritySearchResult,
     SecurityType,
-    SortDirection,
 )
 
 
@@ -97,7 +96,7 @@ async def search_ib_securities(
 
 @tool(
     name="getSecurityInfoByContractId",
-    description="Search for Interactive Brokers securities using symbol OR name.",
+    description="Get detailed information about an Interactive Brokers security by its contract ID.",
 )
 async def get_ib_security_by_contract_id(
     contract_id: Annotated[str, "contract id of the security"],
