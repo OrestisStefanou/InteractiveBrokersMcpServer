@@ -6,6 +6,8 @@ from interactive_brokers.models import (
     Account,
     AccountSummary,
     LedgerEntry,
+    LiveOrder,
+    OrderStatus,
     PlaceOrderRequest,
     PlaceOrderResponse,
     Position,
@@ -109,6 +111,38 @@ class InteractiveBrokersClient:
             entries.append(LedgerEntry.model_validate({**entry, "currency": currency}))
 
         return entries
+
+    async def get_order_status(self, order_id: str) -> OrderStatus:
+        url = f"{self._base_url}/iserver/account/order/status/{order_id}"
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        return OrderStatus.model_validate(data)
+
+    async def get_live_orders(
+        self,
+        account_id: str | None = None,
+    ) -> list[LiveOrder]:
+        url = f"{self._base_url}/iserver/account/orders"
+
+        query_params = {}
+        if account_id is not None:
+            query_params["accountId"] = account_id
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url, params=query_params)
+            response.raise_for_status()
+            data = response.json()
+
+        # IB wraps the orders in an envelope that also carries a snapshot flag
+        # and notifications, and omits the key entirely when it has nothing to
+        # report.
+        orders = data.get("orders") or []
+
+        return [LiveOrder.model_validate(item) for item in orders]
 
     async def place_order(
         self,

@@ -1,7 +1,26 @@
 import enum
-from typing import TypeAlias
+from typing import Annotated, Any, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    model_validator,
+)
+
+
+def _blank_to_none(value: Any) -> Any:
+    # The order endpoints report a number they have no value for as an empty
+    # string rather than omitting the field or sending null, and "" is not
+    # parseable as a float.
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
+
+
+IbFloat: TypeAlias = Annotated[float | None, BeforeValidator(_blank_to_none)]
+IbInt: TypeAlias = Annotated[int | None, BeforeValidator(_blank_to_none)]
 
 
 class SecurityType(enum.StrEnum):
@@ -253,6 +272,72 @@ class PlaceOrderResponse(BaseModel):
     message_ids: list[str] | None = Field(default=None, alias="messageIds")
     # Reject response.
     error: str | None = None
+
+
+class OrderStatus(BaseModel):
+    # This endpoint already answers in snake_case, so no aliases are needed.
+    model_config = ConfigDict(populate_by_name=True)
+
+    order_id: IbInt = None
+    account: str | None = None
+    conid: IbInt = None
+    symbol: str | None = None
+    company_name: str | None = None
+    sec_type: str | None = None
+    listing_exchange: str | None = None
+    currency: str | None = None
+    # Reported as "B" or "S" here, unlike the live orders endpoint.
+    side: str | None = None
+    order_type: str | None = None
+    order_status: str | None = None
+    order_status_description: str | None = None
+    order_ccp_status: str | None = None
+    total_size: IbFloat = None
+    size: IbFloat = None
+    cum_fill: IbFloat = None
+    average_price: IbFloat = None
+    price: IbFloat = None
+    stop_price: IbFloat = None
+    tif: str | None = None
+    outside_rth: bool | None = None
+    order_time: str | None = None
+    order_description: str | None = None
+    order_description_with_contract: str | None = None
+    cannot_cancel_order: bool | None = None
+    order_not_editable: bool | None = None
+    sub_type: str | None = None
+
+
+class LiveOrder(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    order_id: IbInt = Field(default=None, alias="orderId")
+    account: str | None = Field(default=None, alias="acct")
+    conid: IbInt = None
+    ticker: str | None = None
+    company_name: str | None = Field(default=None, alias="companyName")
+    sec_type: str | None = Field(default=None, alias="secType")
+    listing_exchange: str | None = Field(default=None, alias="listingExchange")
+    currency: str | None = Field(default=None, alias="cashCcy")
+    # Reported as "BUY" or "SELL" here, unlike the order status endpoint.
+    side: str | None = None
+    status: str | None = None
+    order_ccp_status: str | None = None
+    order_type: str | None = Field(default=None, alias="orderType")
+    orig_order_type: str | None = Field(default=None, alias="origOrderType")
+    total_size: IbFloat = Field(default=None, alias="totalSize")
+    filled_quantity: IbFloat = Field(default=None, alias="filledQuantity")
+    remaining_quantity: IbFloat = Field(default=None, alias="remainingQuantity")
+    avg_price: IbFloat = Field(default=None, alias="avgPrice")
+    price: IbFloat = None
+    stop_price: IbFloat = None
+    time_in_force: str | None = Field(default=None, alias="timeInForce")
+    # IB files the client order id sent as c_oid under this field.
+    order_ref: str | None = None
+    order_desc: str | None = Field(default=None, alias="orderDesc")
+    size_and_fills: str | None = Field(default=None, alias="sizeAndFills")
+    last_execution_time: str | None = Field(default=None, alias="lastExecutionTime")
+    last_execution_time_r: IbInt = Field(default=None, alias="lastExecutionTime_r")
 
 
 class SecurityInformation(BaseModel):

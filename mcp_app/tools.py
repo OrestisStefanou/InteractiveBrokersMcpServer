@@ -14,9 +14,11 @@ from mcp_app.schema import (
     Account,
     AccountSummary,
     CurrencyBalance,
+    LiveOrder,
     OrderPlacementResult,
     OrderPlacementStatus,
     OrderSide,
+    OrderStatus,
     Position,
     SecurityInformation,
     SecuritySearchResult,
@@ -257,6 +259,116 @@ async def get_ib_account_balances(
     ]
 
 
+def _to_order_side(value: str | None) -> OrderSide | None:
+    # The order status endpoint reports "B" and "S" while live orders report
+    # "BUY" and "SELL".
+    match (value or "").strip().upper():
+        case "B" | "BUY":
+            return OrderSide.BUY
+        case "S" | "SELL":
+            return OrderSide.SELL
+        case _:
+            return None
+
+
+@tool(
+    name="getOrderStatus",
+    description=(
+        "Get the current status of a single Interactive Brokers order by its order ID, "
+        "including how much of it has filled and at what average price. Use the "
+        "order_id returned by placeOrder. An order has only reached the market once "
+        "its status is Submitted or beyond; PendingSubmit and PreSubmitted mean it is "
+        "still on its way. Use getLiveOrders instead to find an order whose order ID "
+        "is unknown."
+    ),
+)
+async def get_ib_order_status(
+    order_id: Annotated[str, "the Interactive Brokers order ID to look up"],
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> OrderStatus:
+    result = await ib_client.get_order_status(order_id)
+
+    # IB reports the total and the cumulative fill but no outstanding figure on
+    # this endpoint, unlike the live orders endpoint.
+    remaining_quantity = None
+    if result.total_size is not None and result.cum_fill is not None:
+        remaining_quantity = result.total_size - result.cum_fill
+
+    return OrderStatus(
+        order_id=result.order_id,
+        status=result.order_status,
+        status_description=result.order_status_description,
+        side=_to_order_side(result.side),
+        symbol=result.symbol,
+        company_name=result.company_name,
+        contract_id=result.conid,
+        sec_type=result.sec_type,
+        listing_exchange=result.listing_exchange,
+        currency=result.currency,
+        order_type=result.order_type,
+        total_quantity=result.total_size,
+        filled_quantity=result.cum_fill,
+        remaining_quantity=remaining_quantity,
+        average_price=result.average_price,
+        limit_price=result.price,
+        stop_price=result.stop_price,
+        time_in_force=result.tif,
+        outside_regular_trading_hours=result.outside_rth,
+        order_time=result.order_time,
+        description=(
+            result.order_description_with_contract or result.order_description
+        ),
+        cannot_cancel=result.cannot_cancel_order,
+    )
+
+
+@tool(
+    name="getLiveOrders",
+    description=(
+        "List the open and recently completed orders of an Interactive Brokers "
+        "account, with the fill progress of each. Use this to find an order whose "
+        "order ID is unknown, in particular to reconcile a placeOrder call whose "
+        "outcome was unclear: match the client_order_id on each entry against the one "
+        "that call returned. Interactive Brokers serves this endpoint in polling mode, "
+        "so the first call of a session can come back empty or incomplete while it "
+        "builds the snapshot; call again before concluding an order does not exist."
+    ),
+)
+async def get_ib_live_orders(
+    account_id: Annotated[
+        str | None, "restrict the results to a single account ID"
+    ] = None,
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[LiveOrder]:
+    results = await ib_client.get_live_orders(account_id=account_id)
+    return [
+        LiveOrder(
+            order_id=result.order_id,
+            client_order_id=result.order_ref,
+            account_id=result.account,
+            status=result.status,
+            side=_to_order_side(result.side),
+            ticker=result.ticker,
+            company_name=result.company_name,
+            contract_id=result.conid,
+            sec_type=result.sec_type,
+            listing_exchange=result.listing_exchange,
+            currency=result.currency,
+            order_type=result.order_type or result.orig_order_type,
+            total_quantity=result.total_size,
+            filled_quantity=result.filled_quantity,
+            remaining_quantity=result.remaining_quantity,
+            average_price=result.avg_price,
+            limit_price=result.price,
+            stop_price=result.stop_price,
+            time_in_force=result.time_in_force,
+            last_execution_time=result.last_execution_time,
+            description=result.order_desc,
+        )
+        for result in results
+    ]
+
+
 def _to_order_placement_result(
     response: ib_models.PlaceOrderResponse,
     client_order_id: str | None = None,
@@ -348,8 +460,8 @@ async def place_ib_order(
         raise ToolError(
             "Interactive Brokers accepted the request but returned an unreadable "
             f"response, so the order may already be placed (client order id "
-            f"{client_order_id}). Reconcile against the account's live orders before "
-            f"retrying. Raw response: {exc.payload!r}"
+            f"{client_order_id}). Call getLiveOrders and look for that client order id "
+            f"before retrying. Raw response: {exc.payload!r}"
         ) from exc
 
     return [_to_order_placement_result(result, client_order_id) for result in results]
@@ -381,8 +493,8 @@ async def confirm_ib_order(
     except OrderResponseParseError as exc:
         raise ToolError(
             "Interactive Brokers accepted the confirmation but returned an unreadable "
-            "response, so the order may already be placed. Reconcile against the "
-            f"account's live orders before retrying. Raw response: {exc.payload!r}"
+            "response, so the order may already be placed. Call getLiveOrders to check "
+            f"the account's orders before retrying. Raw response: {exc.payload!r}"
         ) from exc
 
     return [_to_order_placement_result(result) for result in results]

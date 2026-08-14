@@ -18,16 +18,18 @@ async def main():
         await client.ping()
 
         result = await client.call_tool(
-            name="getAccountSummary",
+            name="getLiveOrders",
             arguments={"account_id": os.environ["IB_ACCOUNT_ID"]},
         )
         print(result.structured_content)
 
-        result = await client.call_tool(
-            name="getAccountBalances",
-            arguments={"account_id": os.environ["IB_ACCOUNT_ID"]},
-        )
-        print(result.structured_content)
+        order_id = os.environ.get("IB_ORDER_ID")
+        if order_id:
+            result = await client.call_tool(
+                name="getOrderStatus",
+                arguments={"order_id": order_id},
+            )
+            print(result.structured_content)
 
 
 asyncio.run(main())
