@@ -96,6 +96,8 @@ For Claude Desktop, add the following to your `claude_desktop_config.json`:
 | `getAccountBalances` | Get cash balances for an account, broken down by currency |
 | `getOrderStatus` | Get the status and fill progress of a single order by order ID |
 | `getLiveOrders` | List open and recently completed orders |
+| `getTrades` | List executions across an account, last 7 days |
+| `getTransactionHistory` | Get up to 90 days of transactions for one security |
 | `placeOrder` | Place a market order (write tool) |
 | `confirmOrder` | Answer an IB warning to release or abandon an order (write tool) |
 
@@ -106,6 +108,18 @@ The two balance tools answer different questions and are backed by different IB 
 `getAccountSummary` (`/portfolio/{accountId}/summary`) answers "what can I trade with": net liquidation value, total and settled cash, buying power, available funds, excess liquidity, margin requirements, cushion and P&L. Every amount is in the account's base currency. IB flags a field it has no value for as null with an amount of 0; the server maps those to `null` so they are not mistaken for a genuine zero balance.
 
 `getAccountBalances` (`/portfolio/{accountId}/ledger`) answers "what cash do I hold": one entry per currency, with cash balance, settled cash, net liquidation value, stock market value, exchange rate and P&L. The `BASE` entry is the account-wide total converted into the base currency and the remaining entries are the individual currencies held, so summing across entries double counts.
+
+### Reading history
+
+IB splits transaction history across two endpoints, and neither one covers the whole job.
+
+`getTrades` (`/iserver/account/trades`) lists executions across the account, optionally filtered to one account, with the side, quantity, price, commission and net amount of each. IB serves at most 7 days here and the tool rejects a larger `days` rather than silently truncating the window. It covers executions only, so dividends and cash transfers never appear.
+
+`getTransactionHistory` (`/pa/transactions`) reaches back up to 90 days and does include dividends and transfers, but IB only honours one contract per call, so a `contract_id` is required. That makes it a per-security tool rather than an account-wide one. `getAccountPositions` is the usual way to find the contract IDs to ask about, though note it only returns securities currently held, so a position closed inside the window will not show up that way.
+
+Neither endpoint reaches further than 90 days. Anything older needs IB's Flex Query service, which is a separate system and is not exposed here.
+
+`quantity` on a transaction is signed, negative for sells and positive for buys, unlike the `getTrades` quantity which is the absolute size of the fill.
 
 ### Placing orders
 

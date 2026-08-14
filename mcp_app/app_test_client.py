@@ -18,16 +18,19 @@ async def main():
         await client.ping()
 
         result = await client.call_tool(
-            name="getLiveOrders",
-            arguments={"account_id": os.environ["IB_ACCOUNT_ID"]},
+            name="getTrades",
+            arguments={"account_id": os.environ["IB_ACCOUNT_ID"], "days": 7},
         )
         print(result.structured_content)
 
-        order_id = os.environ.get("IB_ORDER_ID")
-        if order_id:
+        contract_id = os.environ.get("IB_CONTRACT_ID")
+        if contract_id:
             result = await client.call_tool(
-                name="getOrderStatus",
-                arguments={"order_id": order_id},
+                name="getTransactionHistory",
+                arguments={
+                    "account_id": os.environ["IB_ACCOUNT_ID"],
+                    "contract_id": int(contract_id),
+                },
             )
             print(result.structured_content)
 

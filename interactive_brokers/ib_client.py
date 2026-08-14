@@ -15,6 +15,9 @@ from interactive_brokers.models import (
     SearchContractResult,
     SearchContractsResponse,
     SecurityInformation,
+    Trade,
+    Transaction,
+    TransactionHistoryRequest,
 )
 
 
@@ -143,6 +146,46 @@ class InteractiveBrokersClient:
         orders = data.get("orders") or []
 
         return [LiveOrder.model_validate(item) for item in orders]
+
+    async def get_trades(
+        self,
+        account_id: str | None = None,
+        days: int | None = None,
+    ) -> list[Trade]:
+        url = f"{self._base_url}/iserver/account/trades"
+
+        query_params = {}
+        if account_id is not None:
+            query_params["accountId"] = account_id
+        if days is not None:
+            query_params["days"] = str(days)
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url, params=query_params)
+            response.raise_for_status()
+            data = response.json()
+
+        return [Trade.model_validate(item) for item in data]
+
+    async def get_transaction_history(
+        self,
+        request: TransactionHistoryRequest,
+    ) -> list[Transaction]:
+        url = f"{self._base_url}/pa/transactions"
+
+        payload = request.model_dump(by_alias=True, exclude_none=True)
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+        # IB wraps the list in an envelope carrying the display currency and the
+        # window covered, and omits the key entirely when it has nothing to
+        # report.
+        transactions = data.get("transactions") or []
+
+        return [Transaction.model_validate(item) for item in transactions]
 
     async def place_order(
         self,

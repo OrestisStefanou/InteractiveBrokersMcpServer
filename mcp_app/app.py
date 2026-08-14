@@ -16,6 +16,8 @@ from mcp_app.tools import (
     get_ib_live_orders,
     get_ib_order_status,
     get_ib_security_by_contract_id,
+    get_ib_trades,
+    get_ib_transaction_history,
     place_ib_order,
     search_ib_securities,
 )
@@ -49,6 +51,8 @@ mcp_app.add_tool(get_ib_account_summary)
 mcp_app.add_tool(get_ib_account_balances)
 mcp_app.add_tool(get_ib_order_status)
 mcp_app.add_tool(get_ib_live_orders)
+mcp_app.add_tool(get_ib_trades)
+mcp_app.add_tool(get_ib_transaction_history)
 
 if settings.read_only:
     logger.info("read_only is enabled, order placement tools are not registered")

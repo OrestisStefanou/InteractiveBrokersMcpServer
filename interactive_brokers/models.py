@@ -340,6 +340,68 @@ class LiveOrder(BaseModel):
     last_execution_time_r: IbInt = Field(default=None, alias="lastExecutionTime_r")
 
 
+class Trade(BaseModel):
+    # This endpoint already answers in snake_case, so aliases are only needed
+    # for the handful of camelCase strays.
+    model_config = ConfigDict(populate_by_name=True)
+
+    execution_id: str | None = None
+    symbol: str | None = None
+    # Reported as "B" or "S", as on the order status endpoint.
+    side: str | None = None
+    order_description: str | None = None
+    order_type: str | None = None
+    trade_time: str | None = None
+    trade_time_r: IbInt = None
+    size: IbFloat = None
+    price: IbFloat = None
+    commission: IbFloat = None
+    net_amount: IbFloat = None
+    exchange: str | None = None
+    # IB files the client order id sent as c_oid under this field.
+    order_ref: str | None = None
+    submitter: str | None = None
+    account: str | None = None
+    account_code: str | None = Field(default=None, alias="accountCode")
+    company_name: str | None = None
+    contract_description_1: str | None = None
+    sec_type: str | None = None
+    conid: IbInt = None
+    position: IbFloat = None
+    clearing_name: str | None = None
+    liquidation_trade: str | None = None
+
+
+class TransactionHistoryRequest(BaseModel):
+    model_config = ConfigDict(
+        validate_by_name=True,
+        populate_by_name=True,
+    )
+
+    # IB only honours a single contract id per call despite the plural field.
+    acct_ids: list[str] = Field(alias="acctIds")
+    conids: list[int]
+    currency: str = "USD"
+    # IB documents this as a string rather than a number.
+    days: str | None = None
+
+
+class Transaction(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    date: str | None = None
+    currency: str | None = Field(default=None, alias="cur")
+    price: IbFloat = Field(default=None, alias="pr")
+    # Negative for sells, positive for buys.
+    quantity: IbFloat = Field(default=None, alias="qty")
+    amount: IbFloat = Field(default=None, alias="amt")
+    conid: IbInt = None
+    description: str | None = Field(default=None, alias="desc")
+    type: str | None = None
+    account_id: str | None = Field(default=None, alias="acctid")
+    fx_rate_to_base: IbFloat = Field(default=None, alias="fxRateToBase")
+
+
 class SecurityInformation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

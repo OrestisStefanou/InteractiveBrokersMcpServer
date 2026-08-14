@@ -229,6 +229,104 @@ class LiveOrder(BaseModel):
     )
 
 
+class Trade(BaseModel):
+    execution_id: str | None = Field(
+        default=None,
+        description="Interactive Brokers execution ID, unique per fill.",
+    )
+    client_order_id: str | None = Field(
+        default=None,
+        description=(
+            "Client order ID this server generated when placing the order, as filed by "
+            "Interactive Brokers. Use it to tie an execution back to a placeOrder call."
+        ),
+    )
+    account_id: str | None = Field(
+        default=None, description="Account the trade was executed in."
+    )
+    trade_time: str | None = Field(
+        default=None,
+        description="Execution time as reported by Interactive Brokers, in UTC.",
+    )
+    side: OrderSide | None = Field(
+        default=None, description="Whether the trade bought or sold."
+    )
+    symbol: str | None = Field(default=None, description="Symbol traded.")
+    company_name: str | None = Field(
+        default=None, description="Name of the company behind the symbol."
+    )
+    contract_id: int | None = Field(
+        default=None, description="Contract ID of the security traded."
+    )
+    sec_type: str | None = Field(
+        default=None, description="Security type of the contract."
+    )
+    quantity: float | None = Field(
+        default=None, description="Quantity filled by this execution."
+    )
+    price: float | None = Field(
+        default=None, description="Price this execution filled at."
+    )
+    net_amount: float | None = Field(
+        default=None, description="Net cash value of the execution."
+    )
+    commission: float | None = Field(
+        default=None, description="Commission charged on this execution."
+    )
+    exchange: str | None = Field(
+        default=None, description="Exchange the execution took place on."
+    )
+    order_type: str | None = Field(
+        default=None, description="Type of the order that produced this execution."
+    )
+    description: str | None = Field(
+        default=None, description="Interactive Brokers' description of the trade."
+    )
+
+
+class Transaction(BaseModel):
+    date: str | None = Field(
+        default=None,
+        description="Date of the transaction as reported by Interactive Brokers.",
+    )
+    type: str | None = Field(
+        default=None,
+        description=(
+            "Kind of transaction, e.g. Buy, Sell, Dividend or a transfer. Unlike "
+            "getTrades, this is not limited to executions."
+        ),
+    )
+    description: str | None = Field(
+        default=None, description="Description of the instrument or the cash movement."
+    )
+    contract_id: int | None = Field(
+        default=None, description="Contract ID the transaction relates to."
+    )
+    quantity: float | None = Field(
+        default=None,
+        description=(
+            "Quantity transacted. Negative for sells and positive for buys, so this "
+            "is signed rather than absolute."
+        ),
+    )
+    price: float | None = Field(
+        default=None, description="Price per unit for the transaction."
+    )
+    amount: float | None = Field(
+        default=None, description="Cash amount of the transaction."
+    )
+    currency: str | None = Field(
+        default=None, description="Currency the amount is reported in."
+    )
+    fx_rate_to_base: float | None = Field(
+        default=None,
+        description="Rate used to convert the amount into the account's base currency.",
+    )
+    account_id: str | None = Field(
+        default=None, description="Account the transaction belongs to."
+    )
+
+
 class Account(BaseModel):
     id: str = Field(description="The account ID.")
     account_van: str | None = Field(default=None, description="The account alias.")

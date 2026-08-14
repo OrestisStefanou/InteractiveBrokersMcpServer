@@ -24,6 +24,8 @@ from mcp_app.schema import (
     SecuritySearchResult,
     SecurityType,
     TimeInForce,
+    Trade,
+    Transaction,
 )
 
 
@@ -364,6 +366,108 @@ async def get_ib_live_orders(
             time_in_force=result.time_in_force,
             last_execution_time=result.last_execution_time,
             description=result.order_desc,
+        )
+        for result in results
+    ]
+
+
+MAX_TRADE_HISTORY_DAYS = 7
+
+
+@tool(
+    name="getTrades",
+    description=(
+        "List the executions in an Interactive Brokers account, most recent first. "
+        "Interactive Brokers only serves the last 7 days here, so this cannot answer "
+        "questions about older activity: use getTransactionHistory for that. This "
+        "covers executions only, so dividends and cash transfers do not appear."
+    ),
+)
+async def get_ib_trades(
+    days: Annotated[
+        int | None,
+        "how many prior days to include, 1 to 7. Omit for today's executions only",
+    ] = None,
+    account_id: Annotated[
+        str | None, "restrict the results to a single account ID"
+    ] = None,
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[Trade]:
+    if days is not None and not 1 <= days <= MAX_TRADE_HISTORY_DAYS:
+        raise ToolError(
+            f"days must be between 1 and {MAX_TRADE_HISTORY_DAYS}; Interactive Brokers "
+            "does not serve older executions on this endpoint. Use "
+            "getTransactionHistory for a longer window."
+        )
+
+    results = await ib_client.get_trades(account_id=account_id, days=days)
+    return [
+        Trade(
+            execution_id=result.execution_id,
+            client_order_id=result.order_ref,
+            account_id=result.account or result.account_code,
+            trade_time=result.trade_time,
+            side=_to_order_side(result.side),
+            symbol=result.symbol,
+            company_name=result.company_name,
+            contract_id=result.conid,
+            sec_type=result.sec_type,
+            quantity=result.size,
+            price=result.price,
+            net_amount=result.net_amount,
+            commission=result.commission,
+            exchange=result.exchange,
+            order_type=result.order_type,
+            description=result.order_description,
+        )
+        for result in results
+    ]
+
+
+@tool(
+    name="getTransactionHistory",
+    description=(
+        "Get up to 90 days of transaction history for one security in an Interactive "
+        "Brokers account, including dividends and transfers rather than executions "
+        "alone. Interactive Brokers only serves one contract per call, so a contract ID "
+        "is required and this cannot list everything that happened in an account: use "
+        "getTrades for an account-wide view of the last 7 days, or getAccountPositions "
+        "to find the contract IDs currently held."
+    ),
+)
+async def get_ib_transaction_history(
+    account_id: Annotated[str, "the account ID to get transactions for"],
+    contract_id: Annotated[int, "contract id of the security to get transactions for"],
+    days: Annotated[int, "how many prior days to include"] = 90,
+    currency: Annotated[str, "currency to report the amounts in"] = "USD",
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[Transaction]:
+    if days < 1:
+        raise ToolError("days must be 1 or greater")
+
+    try:
+        request = ib_models.TransactionHistoryRequest(
+            acct_ids=[account_id],
+            conids=[contract_id],
+            currency=currency,
+            days=str(days),
+        )
+    except ValidationError as exc:
+        raise ToolError(f"Invalid transaction history request: {exc}") from exc
+
+    results = await ib_client.get_transaction_history(request)
+    return [
+        Transaction(
+            date=result.date,
+            type=result.type,
+            description=result.description,
+            contract_id=result.conid,
+            quantity=result.quantity,
+            price=result.price,
+            amount=result.amount,
+            currency=result.currency,
+            fx_rate_to_base=result.fx_rate_to_base,
+            account_id=result.account_id,
         )
         for result in results
     ]
