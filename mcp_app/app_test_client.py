@@ -18,7 +18,13 @@ async def main():
         await client.ping()
 
         result = await client.call_tool(
-            name="getAccountPositions",
+            name="getAccountSummary",
+            arguments={"account_id": os.environ["IB_ACCOUNT_ID"]},
+        )
+        print(result.structured_content)
+
+        result = await client.call_tool(
+            name="getAccountBalances",
             arguments={"account_id": os.environ["IB_ACCOUNT_ID"]},
         )
         print(result.structured_content)

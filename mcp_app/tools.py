@@ -12,6 +12,8 @@ from interactive_brokers.ib_client import InteractiveBrokersClient
 from mcp_app.dependencies import get_interactive_brokers_client
 from mcp_app.schema import (
     Account,
+    AccountSummary,
+    CurrencyBalance,
     OrderPlacementResult,
     OrderPlacementStatus,
     OrderSide,
@@ -155,6 +157,101 @@ async def get_ib_account_positions(
             sec_type=result.sec_type,
             asset_class=result.asset_class,
             timestamp=result.timestamp,
+        )
+        for result in results
+    ]
+
+
+def _amount(value: ib_models.AccountSummaryValue | None) -> float | None:
+    # IB reports a field it has no value for as isNull with an amount of 0.
+    # Passing that through would read as a genuine zero balance.
+    if value is None or value.is_null:
+        return None
+    return value.amount
+
+
+@tool(
+    name="getAccountSummary",
+    description=(
+        "Get the balance and margin summary of an Interactive Brokers account: net "
+        "liquidation value, cash, buying power, available funds, excess liquidity, "
+        "margin requirements and profit and loss. Every amount is in the account's "
+        "base currency. Use getAccountBalances instead for a per-currency cash "
+        "breakdown."
+    ),
+)
+async def get_ib_account_summary(
+    account_id: Annotated[str, "the account ID to get the balance summary for"],
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> AccountSummary:
+    result = await ib_client.get_account_summary(account_id)
+
+    # Every amount in the summary is denominated in the account's base currency,
+    # so read it off whichever monetary field IB populated.
+    currency = next(
+        (
+            value.currency
+            for value in (
+                result.net_liquidation,
+                result.total_cash_value,
+                result.excess_liquidity,
+            )
+            if value is not None and value.currency
+        ),
+        None,
+    )
+
+    return AccountSummary(
+        currency=currency,
+        net_liquidation=_amount(result.net_liquidation),
+        total_cash_value=_amount(result.total_cash_value),
+        settled_cash=_amount(result.settled_cash),
+        accrued_cash=_amount(result.accrued_cash),
+        buying_power=_amount(result.buying_power),
+        available_funds=_amount(result.available_funds),
+        excess_liquidity=_amount(result.excess_liquidity),
+        equity_with_loan_value=_amount(result.equity_with_loan_value),
+        gross_position_value=_amount(result.gross_position_value),
+        initial_margin_requirement=_amount(result.init_margin_req),
+        maintenance_margin_requirement=_amount(result.maint_margin_req),
+        cushion=_amount(result.cushion),
+        unrealized_pnl=_amount(result.unrealized_pnl),
+        realized_pnl=_amount(result.realized_pnl),
+        day_trades_remaining=_amount(result.day_trades_remaining),
+        # accounttype carries its payload as a string rather than an amount.
+        account_type=(
+            result.account_type.value if result.account_type is not None else None
+        ),
+    )
+
+
+@tool(
+    name="getAccountBalances",
+    description=(
+        "Get the cash balances of an Interactive Brokers account broken down by "
+        "currency. The 'BASE' entry is the account-wide total converted into the "
+        "account's base currency and the remaining entries are the individual "
+        "currencies held, so summing across entries double counts. Use "
+        "getAccountSummary instead for buying power and margin figures."
+    ),
+)
+async def get_ib_account_balances(
+    account_id: Annotated[str, "the account ID to get the cash balances for"],
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[CurrencyBalance]:
+    results = await ib_client.get_account_ledger(account_id)
+    return [
+        CurrencyBalance(
+            currency=result.currency,
+            cash_balance=result.cash_balance,
+            settled_cash=result.settled_cash,
+            net_liquidation_value=result.net_liquidation_value,
+            stock_market_value=result.stock_market_value,
+            exchange_rate=result.exchange_rate,
+            unrealized_pnl=result.unrealized_pnl,
+            realized_pnl=result.realized_pnl,
+            interest=result.interest,
+            dividends=result.dividends,
         )
         for result in results
     ]

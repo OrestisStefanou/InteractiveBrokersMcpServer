@@ -103,6 +103,99 @@ class Position(BaseModel):
     model: str | None = None
 
 
+class AccountSummaryValue(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    amount: float | None = None
+    currency: str | None = None
+    # IB reports a field it has no value for as isNull with an amount of 0.
+    is_null: bool | None = Field(default=None, alias="isNull")
+    value: str | None = None
+    severity: int | None = None
+    timestamp: int | None = None
+
+
+class AccountSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    net_liquidation: AccountSummaryValue | None = Field(
+        default=None, alias="netliquidation"
+    )
+    total_cash_value: AccountSummaryValue | None = Field(
+        default=None, alias="totalcashvalue"
+    )
+    settled_cash: AccountSummaryValue | None = Field(default=None, alias="settledcash")
+    accrued_cash: AccountSummaryValue | None = Field(default=None, alias="accruedcash")
+    buying_power: AccountSummaryValue | None = Field(default=None, alias="buyingpower")
+    available_funds: AccountSummaryValue | None = Field(
+        default=None, alias="availablefunds"
+    )
+    excess_liquidity: AccountSummaryValue | None = Field(
+        default=None, alias="excessliquidity"
+    )
+    equity_with_loan_value: AccountSummaryValue | None = Field(
+        default=None, alias="equitywithloanvalue"
+    )
+    gross_position_value: AccountSummaryValue | None = Field(
+        default=None, alias="grosspositionvalue"
+    )
+    init_margin_req: AccountSummaryValue | None = Field(
+        default=None, alias="initmarginreq"
+    )
+    maint_margin_req: AccountSummaryValue | None = Field(
+        default=None, alias="maintmarginreq"
+    )
+    cushion: AccountSummaryValue | None = None
+    leverage: AccountSummaryValue | None = None
+    sma: AccountSummaryValue | None = None
+    unrealized_pnl: AccountSummaryValue | None = Field(
+        default=None, alias="unrealizedpnl"
+    )
+    realized_pnl: AccountSummaryValue | None = Field(default=None, alias="realizedpnl")
+    day_trades_remaining: AccountSummaryValue | None = Field(
+        default=None, alias="daytradesremaining"
+    )
+    account_type: AccountSummaryValue | None = Field(default=None, alias="accounttype")
+
+
+class LedgerEntry(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Always populated by the client from the key IB filed the entry under.
+    currency: str
+    cash_balance: float | None = Field(default=None, alias="cashbalance")
+    settled_cash: float | None = Field(default=None, alias="settledcash")
+    net_liquidation_value: float | None = Field(
+        default=None, alias="netliquidationvalue"
+    )
+    stock_market_value: float | None = Field(default=None, alias="stockmarketvalue")
+    exchange_rate: float | None = Field(default=None, alias="exchangerate")
+    unrealized_pnl: float | None = Field(default=None, alias="unrealizedpnl")
+    realized_pnl: float | None = Field(default=None, alias="realizedpnl")
+    interest: float | None = None
+    dividends: float | None = None
+    funds: float | None = None
+    money_funds: float | None = Field(default=None, alias="moneyfunds")
+    cash_balance_fx_segment: float | None = Field(
+        default=None, alias="cashbalancefxsegment"
+    )
+    stock_option_market_value: float | None = Field(
+        default=None, alias="stockoptionmarketvalue"
+    )
+    future_market_value: float | None = Field(default=None, alias="futuremarketvalue")
+    futures_only_pnl: float | None = Field(default=None, alias="futuresonlypnl")
+    commodity_market_value: float | None = Field(
+        default=None, alias="commoditymarketvalue"
+    )
+    corporate_bonds_market_value: float | None = Field(
+        default=None, alias="corporatebondsmarketvalue"
+    )
+    acct_code: str | None = Field(default=None, alias="acctcode")
+    second_key: str | None = Field(default=None, alias="secondkey")
+    timestamp: int | None = None
+    severity: int | None = None
+
+
 class OrderType(enum.StrEnum):
     MARKET = "MKT"
     LIMIT = "LMT"

@@ -92,8 +92,18 @@ For Claude Desktop, add the following to your `claude_desktop_config.json`:
 | `searchSecurities` | Search for securities by symbol or name |
 | `getSecurityInfoByContractId` | Get detailed security information by contract ID |
 | `getAccountPositions` | Get the list of positions held in a given account |
+| `getAccountSummary` | Get balance and margin figures for an account, in its base currency |
+| `getAccountBalances` | Get cash balances for an account, broken down by currency |
 | `placeOrder` | Place a market order (write tool) |
 | `confirmOrder` | Answer an IB warning to release or abandon an order (write tool) |
+
+### Reading balances
+
+The two balance tools answer different questions and are backed by different IB endpoints.
+
+`getAccountSummary` (`/portfolio/{accountId}/summary`) answers "what can I trade with": net liquidation value, total and settled cash, buying power, available funds, excess liquidity, margin requirements, cushion and P&L. Every amount is in the account's base currency. IB flags a field it has no value for as null with an amount of 0; the server maps those to `null` so they are not mistaken for a genuine zero balance.
+
+`getAccountBalances` (`/portfolio/{accountId}/ledger`) answers "what cash do I hold": one entry per currency, with cash balance, settled cash, net liquidation value, stock market value, exchange rate and P&L. The `BASE` entry is the account-wide total converted into the base currency and the remaining entries are the individual currencies held, so summing across entries double counts.
 
 ### Placing orders
 

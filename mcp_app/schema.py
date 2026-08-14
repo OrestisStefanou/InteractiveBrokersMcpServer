@@ -129,6 +129,122 @@ class Account(BaseModel):
     )
 
 
+class AccountSummary(BaseModel):
+    currency: str | None = Field(
+        default=None,
+        description="Base currency of the account. Every amount below is reported in it.",
+    )
+    net_liquidation: float | None = Field(
+        default=None,
+        description="Total value of the account if every position were liquidated.",
+    )
+    total_cash_value: float | None = Field(
+        default=None, description="Total cash held in the account."
+    )
+    settled_cash: float | None = Field(
+        default=None,
+        description="Cash that has settled and is available without a margin loan.",
+    )
+    accrued_cash: float | None = Field(
+        default=None,
+        description="Interest and dividends accrued but not yet posted as cash.",
+    )
+    buying_power: float | None = Field(
+        default=None,
+        description=(
+            "Maximum notional value of securities that can be bought right now, "
+            "including margin leverage. Larger than the available cash on a margin "
+            "account."
+        ),
+    )
+    available_funds: float | None = Field(
+        default=None,
+        description="Funds available for trading or withdrawal after margin requirements.",
+    )
+    excess_liquidity: float | None = Field(
+        default=None,
+        description=(
+            "Buffer above the maintenance margin requirement. A value at or below "
+            "zero means the account is at risk of forced liquidation."
+        ),
+    )
+    equity_with_loan_value: float | None = Field(
+        default=None,
+        description="Account value Interactive Brokers will lend against.",
+    )
+    gross_position_value: float | None = Field(
+        default=None,
+        description="Total absolute market value of all open positions.",
+    )
+    initial_margin_requirement: float | None = Field(
+        default=None, description="Margin required to open the current positions."
+    )
+    maintenance_margin_requirement: float | None = Field(
+        default=None, description="Margin required to keep the current positions open."
+    )
+    cushion: float | None = Field(
+        default=None,
+        description=(
+            "Margin cushion as a fraction, not a percentage: excess liquidity divided "
+            "by net liquidation value. Closer to zero means closer to liquidation."
+        ),
+    )
+    unrealized_pnl: float | None = Field(
+        default=None, description="Profit or loss on open positions."
+    )
+    realized_pnl: float | None = Field(
+        default=None, description="Profit or loss realized through closed trades."
+    )
+    day_trades_remaining: float | None = Field(
+        default=None,
+        description=(
+            "Day trades still allowed over the rolling five day window. -1 means "
+            "unlimited."
+        ),
+    )
+    account_type: str | None = Field(
+        default=None, description="Account type as reported by Interactive Brokers."
+    )
+
+
+class CurrencyBalance(BaseModel):
+    currency: str = Field(
+        description=(
+            "Currency of this balance. 'BASE' is the account-wide total converted into "
+            "the account's base currency; the other entries are the individual "
+            "currencies held, so summing across entries double counts."
+        )
+    )
+    cash_balance: float | None = Field(
+        default=None, description="Cash held in this currency."
+    )
+    settled_cash: float | None = Field(
+        default=None, description="Settled cash held in this currency."
+    )
+    net_liquidation_value: float | None = Field(
+        default=None, description="Net liquidation value attributed to this currency."
+    )
+    stock_market_value: float | None = Field(
+        default=None, description="Market value of stock positions in this currency."
+    )
+    exchange_rate: float | None = Field(
+        default=None,
+        description="Rate used to convert this currency into the account's base currency.",
+    )
+    unrealized_pnl: float | None = Field(
+        default=None, description="Unrealized profit or loss in this currency."
+    )
+    realized_pnl: float | None = Field(
+        default=None, description="Realized profit or loss in this currency."
+    )
+    interest: float | None = Field(
+        default=None, description="Accrued interest in this currency."
+    )
+    dividends: float | None = Field(
+        default=None, description="Accrued dividends in this currency."
+    )
+
+
 class SecuritySearchResult(BaseModel):
     contract_id: str
     company_header: str

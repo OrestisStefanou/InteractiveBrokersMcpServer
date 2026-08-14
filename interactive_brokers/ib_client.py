@@ -4,6 +4,8 @@ from pydantic import ValidationError
 from interactive_brokers.errors import OrderResponseParseError
 from interactive_brokers.models import (
     Account,
+    AccountSummary,
+    LedgerEntry,
     PlaceOrderRequest,
     PlaceOrderResponse,
     Position,
@@ -78,6 +80,35 @@ class InteractiveBrokersClient:
             data = response.json()
 
         return [Position.model_validate(item) for item in data]
+
+    async def get_account_summary(self, account_id: str) -> AccountSummary:
+        url = f"{self._base_url}/portfolio/{account_id}/summary"
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        return AccountSummary.model_validate(data)
+
+    async def get_account_ledger(self, account_id: str) -> list[LedgerEntry]:
+        url = f"{self._base_url}/portfolio/{account_id}/ledger"
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        # IB keys the ledger by currency code, using "BASE" for the account's
+        # base currency. The key is the authoritative label, so prefer it over
+        # the entry's own currency field.
+        entries = []
+        for currency, entry in data.items():
+            if not isinstance(entry, dict):
+                continue
+            entries.append(LedgerEntry.model_validate({**entry, "currency": currency}))
+
+        return entries
 
     async def place_order(
         self,
