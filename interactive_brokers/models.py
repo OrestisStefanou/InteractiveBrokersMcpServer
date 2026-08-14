@@ -1,7 +1,7 @@
 import enum
 from typing import TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SecurityType(enum.StrEnum):
@@ -75,7 +75,9 @@ class Account(BaseModel):
     clearing_status: str | None = Field(default=None, alias="clearingStatus")
     covestor: bool | None = None
     no_client_trading: bool | None = Field(default=None, alias="noClientTrading")
-    track_virtual_fx_portfolio: bool | None = Field(default=None, alias="trackVirtualFXPortfolio")
+    track_virtual_fx_portfolio: bool | None = Field(
+        default=None, alias="trackVirtualFXPortfolio"
+    )
     desc: str | None = None
 
 
@@ -99,6 +101,65 @@ class Position(BaseModel):
     sector: str | None = None
     group: str | None = None
     model: str | None = None
+
+
+class OrderType(enum.StrEnum):
+    MARKET = "MKT"
+    LIMIT = "LMT"
+
+
+class OrderSide(enum.StrEnum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+
+class TimeInForce(enum.StrEnum):
+    GTC = "GTC"
+    OPG = "OPG"
+    DAY = "DAY"
+    IOC = "IOC"
+
+
+class PlaceOrderRequest(BaseModel):
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_by_name=True,
+        populate_by_name=True,
+        validate_default=True,
+    )
+
+    conid: int
+    order_type: OrderType = Field(alias="orderType")
+    side: OrderSide
+    quantity: float
+    c_oid: str
+    tif: TimeInForce = TimeInForce.DAY
+    # Required for LIMIT orders.
+    price: float | None = None
+    acct_id: str | None = Field(default=None, alias="acctId")
+    outside_rth: bool | None = Field(default=None, alias="outsideRTH")
+
+    @model_validator(mode="after")
+    def _require_price_for_limit_orders(self) -> "PlaceOrderRequest":
+        if self.order_type == OrderType.LIMIT and self.price is None:
+            raise ValueError("price is required for LIMIT orders")
+        return self
+
+
+class PlaceOrderResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Standard confirmation response.
+    order_id: str | None = Field(default=None, alias="order_id")
+    order_status: str | None = None
+    encrypt_message: str | None = None
+    # Alternate response: warning that must be confirmed via the reply endpoint.
+    id: str | None = None
+    message: list[str] | None = None
+    is_suppressed: bool | None = Field(default=None, alias="isSuppressed")
+    message_ids: list[str] | None = Field(default=None, alias="messageIds")
+    # Reject response.
+    error: str | None = None
 
 
 class SecurityInformation(BaseModel):

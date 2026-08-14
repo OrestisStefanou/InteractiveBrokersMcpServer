@@ -6,10 +6,13 @@ from fastmcp.server.middleware import (
     MiddlewareContext,
 )
 
+from config import settings
 from mcp_app.tools import (
+    confirm_ib_order,
     get_ib_account_positions,
     get_ib_accounts,
     get_ib_security_by_contract_id,
+    place_ib_order,
     search_ib_securities,
 )
 
@@ -38,3 +41,9 @@ mcp_app.add_tool(get_ib_accounts)
 mcp_app.add_tool(search_ib_securities)
 mcp_app.add_tool(get_ib_security_by_contract_id)
 mcp_app.add_tool(get_ib_account_positions)
+
+if settings.read_only:
+    logger.info("read_only is enabled, order placement tools are not registered")
+else:
+    mcp_app.add_tool(place_ib_order)
+    mcp_app.add_tool(confirm_ib_order)
