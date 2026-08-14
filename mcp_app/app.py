@@ -8,6 +8,7 @@ from fastmcp.server.middleware import (
 
 from config import settings
 from mcp_app.tools import (
+    cancel_ib_order,
     confirm_ib_order,
     get_ib_account_balances,
     get_ib_account_positions,
@@ -15,6 +16,7 @@ from mcp_app.tools import (
     get_ib_accounts,
     get_ib_live_orders,
     get_ib_order_status,
+    get_ib_quotes,
     get_ib_security_by_contract_id,
     get_ib_trades,
     get_ib_transaction_history,
@@ -53,9 +55,11 @@ mcp_app.add_tool(get_ib_order_status)
 mcp_app.add_tool(get_ib_live_orders)
 mcp_app.add_tool(get_ib_trades)
 mcp_app.add_tool(get_ib_transaction_history)
+mcp_app.add_tool(get_ib_quotes)
 
 if settings.read_only:
-    logger.info("read_only is enabled, order placement tools are not registered")
+    logger.info("read_only is enabled, order management tools are not registered")
 else:
     mcp_app.add_tool(place_ib_order)
     mcp_app.add_tool(confirm_ib_order)
+    mcp_app.add_tool(cancel_ib_order)

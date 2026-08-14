@@ -402,6 +402,37 @@ class Transaction(BaseModel):
     fx_rate_to_base: IbFloat = Field(default=None, alias="fxRateToBase")
 
 
+class CancelOrderResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    order_id: IbInt = None
+    conid: IbInt = None
+    account: str | None = None
+    msg: str | None = None
+    error: str | None = None
+
+
+class MarketDataSnapshot(BaseModel):
+    # IB keys the quote fields by their numeric field code. Prices arrive as
+    # strings and may carry a leading letter, so they are kept raw here and
+    # parsed at the tool layer.
+    model_config = ConfigDict(populate_by_name=True)
+
+    conid: IbInt = None
+    symbol: str | None = Field(default=None, alias="55")
+    company_name: str | None = Field(default=None, alias="7051")
+    last_price: str | None = Field(default=None, alias="31")
+    bid_price: str | None = Field(default=None, alias="84")
+    ask_price: str | None = Field(default=None, alias="86")
+    ask_size: str | None = Field(default=None, alias="85")
+    bid_size: str | None = Field(default=None, alias="88")
+    open_price: str | None = Field(default=None, alias="7295")
+    close_price: str | None = Field(default=None, alias="7296")
+    volume: str | None = Field(default=None, alias="7762")
+    availability: str | None = Field(default=None, alias="6509")
+    updated: IbInt = Field(default=None, alias="_updated")
+
+
 class SecurityInformation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

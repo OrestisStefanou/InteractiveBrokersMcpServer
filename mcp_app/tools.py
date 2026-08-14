@@ -15,11 +15,13 @@ from mcp_app.schema import (
     AccountSummary,
     CurrencyBalance,
     LiveOrder,
+    OrderCancellationResult,
     OrderPlacementResult,
     OrderPlacementStatus,
     OrderSide,
     OrderStatus,
     Position,
+    Quote,
     SecurityInformation,
     SecuritySearchResult,
     SecurityType,
@@ -371,6 +373,105 @@ async def get_ib_live_orders(
     ]
 
 
+MAX_QUOTE_CONTRACTS = 50
+
+# IB prefixes a quote with a letter when the number is not a live tick: "C" for
+# a value carried over from the previous close, "H" while the security is
+# halted.
+_STALE_PRICE_PREFIX = "C"
+_HALTED_PRICE_PREFIX = "H"
+
+
+def _parse_quote_number(value: str | None) -> tuple[float | None, str | None]:
+    if value is None:
+        return None, None
+
+    text = value.strip()
+    prefix = None
+    if text[:1].upper() in (_STALE_PRICE_PREFIX, _HALTED_PRICE_PREFIX):
+        prefix = text[:1].upper()
+        text = text[1:]
+
+    try:
+        return float(text.replace(",", "")), prefix
+    except ValueError:
+        return None, prefix
+
+
+@tool(
+    name="getQuotes",
+    description=(
+        "Get the latest bid and ask for one or more Interactive Brokers securities by "
+        "contract ID, along with the last traded price and session figures. Check "
+        "is_stale and is_delayed before acting on the numbers: outside trading hours, "
+        "or without a market data subscription, Interactive Brokers answers with the "
+        "previous close rather than a live quote."
+    ),
+)
+async def get_ib_quotes(
+    contract_ids: Annotated[
+        list[int], "contract ids of the securities to quote"
+    ],
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> list[Quote]:
+    if not contract_ids:
+        raise ToolError("At least one contract id must be provided")
+
+    if len(contract_ids) > MAX_QUOTE_CONTRACTS:
+        raise ToolError(
+            f"At most {MAX_QUOTE_CONTRACTS} contract ids can be quoted at once, got "
+            f"{len(contract_ids)}"
+        )
+
+    results = await ib_client.get_market_data_snapshot(contract_ids)
+
+    quotes = []
+    for result in results:
+        bid_price, bid_prefix = _parse_quote_number(result.bid_price)
+        ask_price, ask_prefix = _parse_quote_number(result.ask_price)
+        last_price, last_prefix = _parse_quote_number(result.last_price)
+        bid_size, _ = _parse_quote_number(result.bid_size)
+        ask_size, _ = _parse_quote_number(result.ask_size)
+        open_price, _ = _parse_quote_number(result.open_price)
+        previous_close, _ = _parse_quote_number(result.close_price)
+        volume, _ = _parse_quote_number(result.volume)
+
+        prefixes = {bid_prefix, ask_prefix, last_prefix}
+        availability = result.availability
+
+        quotes.append(
+            Quote(
+                contract_id=result.conid,
+                symbol=result.symbol,
+                company_name=result.company_name,
+                bid_price=bid_price,
+                ask_price=ask_price,
+                bid_size=bid_size,
+                ask_size=ask_size,
+                spread=(
+                    ask_price - bid_price
+                    if ask_price is not None and bid_price is not None
+                    else None
+                ),
+                last_price=last_price,
+                open_price=open_price,
+                previous_close=previous_close,
+                volume=volume,
+                is_stale=_STALE_PRICE_PREFIX in prefixes,
+                is_halted=_HALTED_PRICE_PREFIX in prefixes,
+                is_delayed=(
+                    availability[:1].upper() in ("D", "Z", "Y")
+                    if availability
+                    else None
+                ),
+                data_availability=availability,
+                updated_at=result.updated,
+            )
+        )
+
+    return quotes
+
+
 MAX_TRADE_HISTORY_DAYS = 7
 
 
@@ -602,3 +703,42 @@ async def confirm_ib_order(
         ) from exc
 
     return [_to_order_placement_result(result) for result in results]
+
+
+@tool(
+    name="cancelOrder",
+    description=(
+        "Request cancellation of a working Interactive Brokers order. Acceptance is "
+        "not the same as cancellation: a resting order can still fill in the time "
+        "between the request being accepted and it reaching the exchange, and an order "
+        "that has already filled cannot be cancelled at all. Call getOrderStatus "
+        "afterwards to confirm the order actually reached Cancelled before assuming "
+        "the position was not taken."
+    ),
+    annotations={"destructiveHint": True, "readOnlyHint": False},
+)
+async def cancel_ib_order(
+    account_id: Annotated[str, "the account ID the order belongs to"],
+    order_id: Annotated[str, "the Interactive Brokers order ID to cancel"],
+    ib_client: InteractiveBrokersClient = Depends(get_interactive_brokers_client),
+) -> OrderCancellationResult:
+    try:
+        result = await ib_client.cancel_order(
+            account_id=account_id,
+            order_id=order_id,
+        )
+    except OrderResponseParseError as exc:
+        raise ToolError(
+            "Interactive Brokers accepted the cancellation but returned an unreadable "
+            f"response, so order {order_id} may or may not still be working. Call "
+            f"getOrderStatus before retrying. Raw response: {exc.payload!r}"
+        ) from exc
+
+    return OrderCancellationResult(
+        submitted=result.error is None,
+        order_id=str(result.order_id) if result.order_id is not None else order_id,
+        account_id=result.account or account_id,
+        contract_id=result.conid,
+        message=result.msg,
+        error=result.error,
+    )

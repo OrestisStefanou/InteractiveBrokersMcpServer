@@ -327,6 +327,106 @@ class Transaction(BaseModel):
     )
 
 
+class OrderCancellationResult(BaseModel):
+    submitted: bool = Field(
+        description=(
+            "Whether Interactive Brokers accepted the cancellation request. This is "
+            "NOT a guarantee the order is cancelled: a resting order can still fill in "
+            "the time between the request being accepted and it reaching the exchange. "
+            "Call getOrderStatus to confirm the order actually reached Cancelled."
+        )
+    )
+    order_id: str | None = Field(
+        default=None, description="Order the cancellation was requested for."
+    )
+    account_id: str | None = Field(
+        default=None, description="Account the order belongs to."
+    )
+    contract_id: int | None = Field(
+        default=None, description="Contract ID of the security the order was for."
+    )
+    message: str | None = Field(
+        default=None,
+        description="Interactive Brokers' response to the cancellation request.",
+    )
+    error: str | None = Field(
+        default=None,
+        description="Reason the cancellation was refused, when it was refused.",
+    )
+
+
+class Quote(BaseModel):
+    contract_id: int | None = Field(
+        default=None, description="Contract ID this quote is for."
+    )
+    symbol: str | None = Field(default=None, description="Symbol of the security.")
+    company_name: str | None = Field(
+        default=None, description="Name of the company behind the symbol."
+    )
+    bid_price: float | None = Field(
+        default=None, description="Highest price a buyer is currently bidding."
+    )
+    ask_price: float | None = Field(
+        default=None, description="Lowest price a seller is currently asking."
+    )
+    bid_size: float | None = Field(
+        default=None, description="Size available at the bid."
+    )
+    ask_size: float | None = Field(
+        default=None, description="Size available at the ask."
+    )
+    spread: float | None = Field(
+        default=None,
+        description=(
+            "Ask minus bid, derived by this server. Null when either side is missing."
+        ),
+    )
+    last_price: float | None = Field(
+        default=None, description="Price of the most recent trade."
+    )
+    open_price: float | None = Field(
+        default=None, description="Opening price for the session."
+    )
+    previous_close: float | None = Field(
+        default=None, description="Closing price of the previous session."
+    )
+    volume: float | None = Field(
+        default=None, description="Volume traded in the session."
+    )
+    is_stale: bool = Field(
+        default=False,
+        description=(
+            "True when Interactive Brokers answered with a previous close rather than "
+            "a live tick, which it does outside trading hours or when there is no "
+            "subscription. Treat the prices as indicative, not tradable."
+        ),
+    )
+    is_halted: bool = Field(
+        default=False,
+        description="True when Interactive Brokers flagged the security as halted.",
+    )
+    is_delayed: bool | None = Field(
+        default=None,
+        description=(
+            "True when the data is delayed or frozen rather than realtime, derived "
+            "from the availability code. Null when Interactive Brokers did not report "
+            "availability."
+        ),
+    )
+    data_availability: str | None = Field(
+        default=None,
+        description=(
+            "Raw availability code from Interactive Brokers. The leading letter is "
+            "the one that matters: R is realtime, D is delayed, Z is delayed and "
+            "frozen, Y is frozen, N is not subscribed."
+        ),
+    )
+    updated_at: int | None = Field(
+        default=None,
+        description="Epoch milliseconds of the last update to this quote.",
+    )
+
+
 class Account(BaseModel):
     id: str = Field(description="The account ID.")
     account_van: str | None = Field(default=None, description="The account alias.")

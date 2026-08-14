@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 from pydantic import ValidationError
 
@@ -5,7 +7,9 @@ from interactive_brokers.errors import OrderResponseParseError
 from interactive_brokers.models import (
     Account,
     AccountSummary,
+    CancelOrderResponse,
     LedgerEntry,
+    MarketDataSnapshot,
     LiveOrder,
     OrderStatus,
     PlaceOrderRequest,
@@ -19,6 +23,36 @@ from interactive_brokers.models import (
     Transaction,
     TransactionHistoryRequest,
 )
+
+
+# Field codes IB keys its quote data by.
+QUOTE_FIELDS = (
+    "55",  # symbol
+    "7051",  # company name
+    "31",  # last price
+    "84",  # bid price
+    "85",  # ask size
+    "86",  # ask price
+    "88",  # bid size
+    "7295",  # open
+    "7296",  # previous close
+    "7762",  # volume
+    "6509",  # market data availability
+)
+
+# IB builds the subscription on the first request and answers it with whatever
+# it has, which is often nothing at all.
+SNAPSHOT_WARMUP_DELAY_SECONDS = 2.0
+
+
+def _has_quote_data(payload: object) -> bool:
+    if not isinstance(payload, list):
+        return False
+    # Bid and ask are what the snapshot is for, so treat their absence across
+    # every entry as the subscription not being warm yet.
+    return any(
+        isinstance(item, dict) and ("84" in item or "86" in item) for item in payload
+    )
 
 
 class InteractiveBrokersClient:
@@ -186,6 +220,58 @@ class InteractiveBrokersClient:
         transactions = data.get("transactions") or []
 
         return [Transaction.model_validate(item) for item in transactions]
+
+    async def get_market_data_snapshot(
+        self,
+        conids: list[int],
+        warmup_delay: float | None = None,
+    ) -> list[MarketDataSnapshot]:
+        url = f"{self._base_url}/iserver/marketdata/snapshot"
+
+        query_params = {
+            "conids": ",".join(str(conid) for conid in conids),
+            "fields": ",".join(QUOTE_FIELDS),
+        }
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url, params=query_params)
+            response.raise_for_status()
+            data = response.json()
+
+            # The first request only opens the subscription, so IB commonly
+            # answers it with entries carrying no quote fields at all. Asking a
+            # second time is what actually returns the data.
+            if not _has_quote_data(data):
+                delay = (
+                    SNAPSHOT_WARMUP_DELAY_SECONDS
+                    if warmup_delay is None
+                    else warmup_delay
+                )
+                await asyncio.sleep(delay)
+                response = await client.get(url, params=query_params)
+                response.raise_for_status()
+                data = response.json()
+
+        return [MarketDataSnapshot.model_validate(item) for item in data]
+
+    async def cancel_order(
+        self,
+        account_id: str,
+        order_id: str,
+    ) -> CancelOrderResponse:
+        url = f"{self._base_url}/iserver/account/{account_id}/order/{order_id}"
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.delete(url)
+            response.raise_for_status()
+            data = response.json()
+
+        # Same reasoning as place_order: IB may already have pulled the order,
+        # so a parse failure is "outcome unknown", not "cancellation failed".
+        try:
+            return CancelOrderResponse.model_validate(data)
+        except ValidationError as exc:
+            raise OrderResponseParseError(data) from exc
 
     async def place_order(
         self,

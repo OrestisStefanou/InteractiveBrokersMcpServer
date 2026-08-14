@@ -17,19 +17,22 @@ async def main():
         # Basic server interaction
         await client.ping()
 
-        result = await client.call_tool(
-            name="getTrades",
-            arguments={"account_id": os.environ["IB_ACCOUNT_ID"], "days": 7},
-        )
-        print(result.structured_content)
-
         contract_id = os.environ.get("IB_CONTRACT_ID")
         if contract_id:
             result = await client.call_tool(
-                name="getTransactionHistory",
+                name="getQuotes",
+                arguments={"contract_ids": [int(contract_id)]},
+            )
+            print(result.structured_content)
+
+        # Cancels a live order, so it stays opt-in.
+        order_id = os.environ.get("IB_CANCEL_ORDER_ID")
+        if order_id:
+            result = await client.call_tool(
+                name="cancelOrder",
                 arguments={
                     "account_id": os.environ["IB_ACCOUNT_ID"],
-                    "contract_id": int(contract_id),
+                    "order_id": order_id,
                 },
             )
             print(result.structured_content)
