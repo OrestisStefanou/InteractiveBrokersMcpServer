@@ -17,25 +17,16 @@ async def main():
         # Basic server interaction
         await client.ping()
 
-        contract_id = os.environ.get("IB_CONTRACT_ID")
-        if contract_id:
-            result = await client.call_tool(
-                name="getQuotes",
-                arguments={"contract_ids": [int(contract_id)]},
-            )
-            print(result.structured_content)
 
-        # Cancels a live order, so it stays opt-in.
-        order_id = os.environ.get("IB_CANCEL_ORDER_ID")
-        if order_id:
-            result = await client.call_tool(
-                name="cancelOrder",
-                arguments={
-                    "account_id": os.environ["IB_ACCOUNT_ID"],
-                    "order_id": order_id,
-                },
-            )
-            print(result.structured_content)
+        result = await client.call_tool(
+            name="getTransactionHistory",
+            arguments={
+				"account_id": "U24587525",
+				"contract_id": 365207014,
+			},
+        )
+        print(result.structured_content)
+
 
 
 asyncio.run(main())

@@ -383,7 +383,7 @@ class TransactionHistoryRequest(BaseModel):
     conids: list[int]
     currency: str = "USD"
     # IB documents this as a string rather than a number.
-    days: str | None = None
+    days: int | None = None
 
 
 class Transaction(BaseModel):

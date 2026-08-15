@@ -551,7 +551,7 @@ async def get_ib_transaction_history(
             acct_ids=[account_id],
             conids=[contract_id],
             currency=currency,
-            days=str(days),
+            days=days,
         )
     except ValidationError as exc:
         raise ToolError(f"Invalid transaction history request: {exc}") from exc
