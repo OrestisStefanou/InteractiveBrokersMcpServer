@@ -77,8 +77,12 @@ For Claude Desktop, add the following to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "interactive-brokers": {
-      "url": "http://localhost:9092/mcp"
+    "Interactive Brokers MCP Server": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "http://127.0.0.1:9092/mcp"
+      ]
     }
   }
 }
